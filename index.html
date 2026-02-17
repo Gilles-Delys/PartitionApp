@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Générateur de Partition & Enregistreur</title>
     <link rel="stylesheet" href="style.css">
+    
     <script src="https://unpkg.com/vexflow/releases/vexflow-debug.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -24,7 +25,7 @@
                 <div class="input-group">
                     <label for="audioSource">Source Audio :</label>
                     <select id="audioSource">
-                        <option value="file">Fichier Audio (MP3, WAV...)</option>
+                        <option value="file" selected>Fichier Audio (MP3, WAV...)</option>
                         <option value="mic">Microphone</option>
                         <option value="system">Haut-parleurs (Capture Système)</option>
                     </select>
@@ -32,20 +33,20 @@
 
                 <input type="file" id="fileInput" accept="audio/*,video/*" style="display: none;">
                 
-                <button id="btnSelectFile" class="btn btn-secondary">📂 Sélectionner Fichier</button>
+                <button id="btnSelectFile" class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">📂 Sélectionner Fichier</button>
                 <span id="fileNameDisplay">Aucun fichier</span>
 
                 <div class="divider"></div>
 
-                <button id="btnPlay" class="btn btn-primary" disabled>▶ Play</button>
-                <button id="btnStop" class="btn btn-danger" disabled>⏹ Stop</button>
-                <button id="btnExport" class="btn btn-success" disabled>📄 Exporter Partition PDF</button>
+                <button id="btnPlay" class="btn btn-primary">▶ Play</button>
+                <button id="btnStop" class="btn btn-danger">⏹ Stop</button>
+                <button id="btnExport" class="btn btn-success">📄 Exporter Partition PDF</button>
             </div>
 
             <div class="progress-section">
                 <div class="progress-container">
                     <span id="currentTime">00:00</span>
-                    <input type="range" id="progressBar" value="0" min="0" step="0.1" disabled>
+                    <input type="range" id="progressBar" value="0" min="0" step="0.1">
                     <span id="totalTime">00:00</span>
                 </div>
             </div>
@@ -64,7 +65,7 @@
             <div class="controls-panel">
                 <div class="recorder-status" id="recorderStatus">Prêt à enregistrer</div>
                 <button id="btnRecStart" class="btn btn-record">🔴 Commencer l'enregistrement</button>
-                <button id="btnRecStop" class="btn btn-danger" disabled>⏹ Arrêter & Sauvegarder</button>
+                <button id="btnRecStop" class="btn btn-danger">⏹ Arrêter & Sauvegarder</button>
             </div>
         </section>
 

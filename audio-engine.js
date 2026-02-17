@@ -1,11 +1,8 @@
-/**
- * AUDIO ENGINE
- * Gère l'analyse (Transcription) et l'enregistrement (Recorder).
- */
-
 class AudioEngine {
     constructor() {
-        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        // Initialisation sécurisée
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.audioContext = new AudioContext();
         this.analyser = this.audioContext.createAnalyser();
         this.analyser.fftSize = 2048;
         this.source = null;
@@ -13,17 +10,13 @@ class AudioEngine {
         this.buffer = null;
         this.isProcessing = false;
         
-        // Variables pour l'enregistreur indépendant (Partie 2)
         this.mediaRecorder = null;
         this.recordedChunks = [];
         
-        // Callbacks vers l'interface
         this.onNoteDetected = null; 
         this.onTimeUpdate = null;
         this.onEnded = null;
     }
-
-    // --- PARTIE 1 : MOTEUR DE TRANSCRIPTION ---
 
     async loadFile(file) {
         const arrayBuffer = await file.arrayBuffer();
@@ -39,42 +32,35 @@ class AudioEngine {
 
     async setupSystemAudio() {
         try {
-            // Capture audio système (via partage d'écran avec audio coché)
             this.stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-            
             const audioTracks = this.stream.getAudioTracks();
             if (audioTracks.length === 0) {
-                alert("Erreur : Audio non partagé. Veuillez cocher 'Partager l'audio système'.");
+                alert("Aucun audio détecté. Avez-vous coché 'Partager l'audio' ?");
                 this.stop();
                 return false;
             }
-
             this.source = this.audioContext.createMediaStreamSource(this.stream);
             this.source.connect(this.analyser);
-            this.source.connect(this.audioContext.destination); // Retour audio
+            this.source.connect(this.audioContext.destination);
             return true;
         } catch (err) {
-            console.error("Erreur capture système:", err);
+            console.error(err);
             return false;
         }
     }
 
     playFileSource(startTime = 0) {
         if (!this.buffer) return;
-        
         this.source = this.audioContext.createBufferSource();
         this.source.buffer = this.buffer;
         this.source.connect(this.analyser);
         this.analyser.connect(this.audioContext.destination);
-
         this.source.start(0, startTime);
         this.isProcessing = true;
-        
         this.source.onended = () => {
             this.isProcessing = false;
             if (this.onEnded) this.onEnded();
         };
-
         this._startAnalysisLoop();
     }
 
@@ -97,20 +83,13 @@ class AudioEngine {
 
     _startAnalysisLoop() {
         if (!this.isProcessing) return;
-
         const bufferLength = this.analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
         this.analyser.getByteTimeDomainData(dataArray);
 
         const frequency = this._autoCorrelate(dataArray, this.audioContext.sampleRate);
-
-        if (frequency > -1 && this.onNoteDetected) {
-            this.onNoteDetected(frequency);
-        }
-
-        if (this.onTimeUpdate && this.audioContext.state === 'running') {
-            this.onTimeUpdate(this.audioContext.currentTime);
-        }
+        if (frequency > -1 && this.onNoteDetected) this.onNoteDetected(frequency);
+        if (this.onTimeUpdate && this.audioContext.state === 'running') this.onTimeUpdate(this.audioContext.currentTime);
 
         requestAnimationFrame(() => this._startAnalysisLoop());
     }
@@ -134,7 +113,6 @@ class AudioEngine {
         }
         buf = buf.slice(r1, r2);
         size = buf.length;
-
         let c = new Array(size).fill(0);
         for (let i = 0; i < size; i++) {
             for (let j = 0; j < size - i; j++) {
@@ -150,31 +128,22 @@ class AudioEngine {
         return sampleRate / T0;
     }
 
-    // --- PARTIE 2 : ENREGISTREUR INDÉPENDANT ---
-
+    // --- ENREGISTREUR ---
     async startRecordingSystem() {
         try {
             const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-            
             const audioTracks = stream.getAudioTracks();
-            if (audioTracks.length === 0) throw new Error("Pas d'audio partagé");
+            if (audioTracks.length === 0) throw new Error("Pas d'audio");
 
             const audioStream = new MediaStream(audioTracks);
-            const options = { mimeType: 'audio/webm;codecs=opus' };
-            
-            this.mediaRecorder = new MediaRecorder(audioStream, options);
+            this.mediaRecorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm;codecs=opus' });
             this.recordedChunks = [];
 
-            this.mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    this.recordedChunks.push(event.data);
-                }
-            };
-
+            this.mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) this.recordedChunks.push(e.data); };
             this.mediaRecorder.start();
             return true;
         } catch (err) {
-            console.error("Erreur enregistrement:", err);
+            console.error(err);
             return false;
         }
     }
@@ -182,16 +151,12 @@ class AudioEngine {
     async stopRecordingAndGetBlob() {
         return new Promise((resolve) => {
             if (!this.mediaRecorder) return resolve(null);
-
             this.mediaRecorder.onstop = () => {
                 const blob = new Blob(this.recordedChunks, { type: 'audio/webm' });
-                if(this.mediaRecorder.stream) {
-                    this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
-                }
+                this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
                 this.mediaRecorder = null;
                 resolve(blob);
             };
-
             this.mediaRecorder.stop();
         });
     }

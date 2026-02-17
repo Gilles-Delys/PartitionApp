@@ -1,8 +1,3 @@
-/**
- * NOTATION MANAGER
- * Gère la conversion Fréquence -> Note et le rendu VexFlow.
- */
-
 class NotationManager {
     constructor(containerId) {
         this.containerId = containerId;
@@ -12,12 +7,16 @@ class NotationManager {
     }
 
     init() {
-        const div = document.getElementById(this.containerId);
-        div.innerHTML = ""; 
-        const renderer = new this.VF.Renderer(div, this.VF.Renderer.Backends.SVG);
-        renderer.resize(800, 250);
-        this.context = renderer.getContext();
-        this.drawStave();
+        try {
+            const div = document.getElementById(this.containerId);
+            div.innerHTML = ""; 
+            const renderer = new this.VF.Renderer(div, this.VF.Renderer.Backends.SVG);
+            renderer.resize(800, 250);
+            this.context = renderer.getContext();
+            this.drawStave();
+        } catch (e) {
+            console.error("Erreur VexFlow:", e);
+        }
     }
 
     drawStave() {
@@ -25,54 +24,29 @@ class NotationManager {
         const stave = new this.VF.Stave(10, 40, 750);
         stave.addClef("treble").addTimeSignature("4/4");
         stave.setContext(this.context).draw();
-        return stave;
     }
 
     freqToNote(frequency) {
         const noteStrings = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-        const A4 = 440;
-        const semitones = 12 * (Math.log(frequency / A4) / Math.log(2));
+        const semitones = 12 * (Math.log(frequency / 440) / Math.log(2));
         const midifile = 69 + Math.round(semitones); 
-        
-        const noteIndex = midifile % 12;
-        const octave = Math.floor(midifile / 12) - 1;
-        
-        return { note: noteStrings[noteIndex], octave: octave };
+        return { note: noteStrings[midifile % 12], octave: Math.floor(midifile / 12) - 1 };
     }
 
-    // Transposition Clarinette Sib (+2 demi-tons)
     transposeToClarinetBb(noteObj) {
         const noteStrings = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-        let idx = noteStrings.indexOf(noteObj.note);
+        let idx = noteStrings.indexOf(noteObj.note) + 2; // +1 Ton
         let newOctave = noteObj.octave;
-
-        idx += 2;
-        if (idx >= 12) {
-            idx -= 12;
-            newOctave += 1;
-        }
-
-        return {
-            keys: [`${noteStrings[idx]}/${newOctave}`],
-            duration: "q"
-        };
+        if (idx >= 12) { idx -= 12; newOctave += 1; }
+        return { keys: [`${noteStrings[idx]}/${newOctave}`], duration: "q" };
     }
 
     addNote(frequency) {
         if (this.notes.length > 12) this.notes.shift(); 
-
         const rawNote = this.freqToNote(frequency);
         if (!rawNote.note) return;
-
-        const transposedNote = this.transposeToClarinetBb(rawNote);
-        
-        const vfNote = new this.VF.StaveNote({ 
-            keys: transposedNote.keys, 
-            duration: transposedNote.duration,
-            clef: "treble" 
-        });
-
-        this.notes.push(vfNote);
+        const transposed = this.transposeToClarinetBb(rawNote);
+        this.notes.push(new this.VF.StaveNote({ keys: transposed.keys, duration: transposed.duration, clef: "treble" }));
         this.draw();
     }
 
@@ -82,12 +56,9 @@ class NotationManager {
         const renderer = new this.VF.Renderer(div, this.VF.Renderer.Backends.SVG);
         renderer.resize(800, 250);
         const ctx = renderer.getContext();
-        
-        const stave = new this.VF.Stave(10, 40, 750);
-        stave.addClef("treble").addTimeSignature("4/4").setContext(ctx).draw();
-
+        const stave = new this.VF.Stave(10, 40, 750).addClef("treble").addTimeSignature("4/4").setContext(ctx).draw();
         if (this.notes.length > 0) {
-            const voice = new this.VF.Voice({num_beats: this.notes.length,  beat_value: 4});
+            const voice = new this.VF.Voice({num_beats: this.notes.length, beat_value: 4});
             voice.addTickables(this.notes);
             new this.VF.Formatter().joinVoices([voice]).format([voice], 700);
             voice.draw(ctx, stave);
@@ -98,16 +69,12 @@ class NotationManager {
         const element = document.getElementById(this.containerId);
         const canvas = await html2canvas(element);
         const imgData = canvas.toDataURL('image/png');
-        
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF('l', 'mm', 'a4'); 
-        pdf.setFontSize(20);
         pdf.text("Partition Clarinette Sib", 10, 15);
-        
-        const imgProps = pdf.getImageProperties(imgData);
+        const props = pdf.getImageProperties(imgData);
         const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-        
+        const pdfHeight = (props.height * pdfWidth) / props.width;
         pdf.addImage(imgData, 'PNG', 0, 30, pdfWidth, pdfHeight);
         pdf.save("ma-partition.pdf");
     }

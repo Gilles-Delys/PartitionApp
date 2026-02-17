@@ -1,15 +1,11 @@
-/**
- * MAIN APP
- * Gestion des événements, états des boutons et logiques UI.
- */
-
 document.addEventListener("DOMContentLoaded", () => {
-    
-    // Initialisation
+    console.log(">>> APP.JS DÉMARRÉ !"); // Vérifie la console (F12) si tu ne vois pas ça
+
+    // Instanciation
     const audioEngine = new AudioEngine();
     const notationManager = new NotationManager("canvasContainer");
 
-    // --- Éléments UI Partie 1 (Générateur Partition) ---
+    // UI Elements
     const audioSourceSelect = document.getElementById("audioSource");
     const fileInput = document.getElementById("fileInput");
     const btnSelectFile = document.getElementById("btnSelectFile");
@@ -21,92 +17,56 @@ document.addEventListener("DOMContentLoaded", () => {
     const currentTimeSpan = document.getElementById("currentTime");
     const totalTimeSpan = document.getElementById("totalTime");
 
-    // --- Éléments UI Partie 2 (Enregistreur Audio) ---
     const btnRecStart = document.getElementById("btnRecStart");
     const btnRecStop = document.getElementById("btnRecStop");
     const recorderStatus = document.getElementById("recorderStatus");
 
-    // Variables d'état
     let currentMode = 'file';
     let isFileLoaded = false;
     let lastNoteTime = 0;
 
-    // Initialisation VexFlow (Portée vide)
+    // Initialisation
     notationManager.init();
     
-    // Initialisation état des boutons au chargement
-    updateButtonStates();
+    // On force l'état initial des boutons par JS pour être sûr
+    refreshButtonsState();
 
-    // ============================================================
-    // PARTIE 1 : LOGIQUE UI & BOUTONS
-    // ============================================================
-
-    // 1. Changement de la liste déroulante
+    // --- LOGIQUE SOURCE ---
     audioSourceSelect.addEventListener("change", (e) => {
+        console.log("Changement source:", e.target.value);
         currentMode = e.target.value;
-        // Reset complet lors du changement de source
-        resetGeneratorState();
-        updateButtonStates();
+        resetGenerator();
+        refreshButtonsState();
     });
 
-    // 2. Gestion stricte des états des boutons (La logique demandée)
-    function updateButtonStates() {
-        // Bouton Sélectionner Fichier : Grisé sauf si mode "file"
-        if (currentMode === 'file') {
-            btnSelectFile.disabled = false;
-        } else {
-            btnSelectFile.disabled = true;
-        }
-
-        // Bouton Play : 
-        // - Si Fichier : Enabled seulement si un fichier est chargé
-        // - Si Micro/HP : Toujours Enabled par défaut
-        if (currentMode === 'file') {
-            btnPlay.disabled = !isFileLoaded; 
-        } else {
-            btnPlay.disabled = false;
-        }
-    }
-
-    // 3. Bouton "Sélectionner Fichier" -> Ouvre l'explorateur
+    // --- LOGIQUE FICHIER ---
+    // Note: Le HTML a déjà un onclick="fileInput.click()" au cas où, mais on le garde ici
     btnSelectFile.addEventListener("click", () => {
-        // Force le clic sur l'input hidden
+        console.log("Ouverture explorateur demandée");
         fileInput.click();
     });
 
-    // 4. Une fois le fichier choisi via l'explorateur
     fileInput.addEventListener("change", async (e) => {
         if (e.target.files.length > 0) {
             const file = e.target.files[0];
+            console.log("Fichier choisi:", file.name);
             fileNameDisplay.textContent = file.name;
-            
-            // Chargement audio
             const duration = await audioEngine.loadFile(file);
-            
-            // Mise à jour UI
             totalTimeSpan.textContent = formatTime(duration);
             progressBar.max = duration;
-            
             isFileLoaded = true;
-            updateButtonStates(); // Active le bouton Play
+            refreshButtonsState();
         }
     });
 
-    // 5. Bouton Play (Flip/Flop Start)
+    // --- LOGIQUE PLAY / STOP (FLIP FLOP) ---
     btnPlay.addEventListener("click", async () => {
-        // Initialisation Audio Context (requis par navigateur)
-        if (audioEngine.audioContext.state === 'suspended') {
-            await audioEngine.audioContext.resume();
-        }
+        console.log("Click Play");
+        if (audioEngine.audioContext.state === 'suspended') await audioEngine.audioContext.resume();
 
-        // --- GESTION ETATS BOUTONS (Play -> Stop) ---
-        btnPlay.disabled = true;
-        btnStop.disabled = false;
-        btnExport.disabled = true;       // Export désactivé pendant lecture
-        audioSourceSelect.disabled = true; // On ne change pas de source pendant lecture
-        btnSelectFile.disabled = true;   // On ne change pas de fichier pendant lecture
+        // UI Flip
+        setPlayState(true);
 
-        // Callbacks moteur
         audioEngine.onNoteDetected = (freq) => {
             const now = Date.now();
             if (now - lastNoteTime > 150) { 
@@ -122,138 +82,126 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         };
 
-        // Fin automatique
         audioEngine.onEnded = () => {
-            handleStopLogic();
+            console.log("Fin audio");
+            setPlayState(false);
         };
 
-        // Démarrage selon mode
-        if (currentMode === 'file') {
-            audioEngine.playFileSource();
-        } else if (currentMode === 'mic') {
+        if (currentMode === 'file') audioEngine.playFileSource();
+        else if (currentMode === 'mic') {
             await audioEngine.setupMicrophone();
             audioEngine.startStreamAnalysis();
         } else if (currentMode === 'system') {
-            const success = await audioEngine.setupSystemAudio();
-            if (!success) {
-                handleStopLogic(); // Annulation user
-            } else {
-                audioEngine.startStreamAnalysis();
-            }
+            const ok = await audioEngine.setupSystemAudio();
+            if(!ok) setPlayState(false);
+            else audioEngine.startStreamAnalysis();
         }
     });
 
-    // 6. Bouton Stop (Flip/Flop End)
     btnStop.addEventListener("click", () => {
-        handleStopLogic();
+        console.log("Click Stop");
+        audioEngine.stop();
+        setPlayState(false);
     });
 
-    // Fonction centralisée d'arrêt pour gérer les états
-    function handleStopLogic() {
-        audioEngine.stop();
-        
-        // --- GESTION ETATS BOUTONS (Stop -> Play & Export) ---
-        btnPlay.disabled = false;      // Play redevient cliquable
-        btnStop.disabled = true;       // Stop se désactive
-        btnExport.disabled = false;    // Export s'active ENFIN
-        audioSourceSelect.disabled = false;
-        
-        // Rétablissement bouton fichier si mode fichier
-        if (currentMode === 'file') {
-            btnSelectFile.disabled = false;
-        }
-    }
-
-    // 7. Bouton Export (Seulement actif après Stop)
     btnExport.addEventListener("click", () => {
         notationManager.exportToPDF();
     });
 
-    // ============================================================
-    // PARTIE 2 : LOGIQUE ENREGISTREUR (FLIP/FLOP INDÉPENDANT)
-    // ============================================================
+    // --- LOGIQUE ENREGISTREUR (FLIP FLOP INDÉPENDANT) ---
+    // Initialisation état enregistreur
+    btnRecStart.disabled = false;
+    btnRecStop.disabled = true;
 
     btnRecStart.addEventListener("click", async () => {
+        console.log("Click Rec Start");
         const success = await audioEngine.startRecordingSystem();
         if (success) {
-            // FLIP : Start désactivé, Stop activé
             btnRecStart.disabled = true;
             btnRecStop.disabled = false;
-            
             recorderStatus.style.display = "block";
             recorderStatus.textContent = "🔴 Enregistrement en cours...";
-            recorderStatus.style.color = "#C0392B";
         }
     });
 
     btnRecStop.addEventListener("click", async () => {
+        console.log("Click Rec Stop");
         const blob = await audioEngine.stopRecordingAndGetBlob();
         
-        // FLOP : Stop désactivé, Start activé
         btnRecStop.disabled = true;
         btnRecStart.disabled = false;
 
         if (blob) {
-            recorderStatus.textContent = "Sauvegarde en cours...";
-            // Appel Explorateur pour sauvegarde
-            await saveRecordedFile(blob);
-        } else {
-            recorderStatus.textContent = "Erreur ou annulation.";
+            recorderStatus.textContent = "Sauvegarde...";
+            if ('showSaveFilePicker' in window) {
+                try {
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: 'rec.webm',
+                        types: [{ description: 'Audio', accept: { 'audio/webm': ['.webm'] } }],
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                    recorderStatus.textContent = "Sauvegardé !";
+                } catch (e) { recorderStatus.textContent = "Annulé"; }
+            } else {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.style.display = "none";
+                a.href = url;
+                a.download = "rec.webm";
+                document.body.appendChild(a);
+                a.click();
+                recorderStatus.textContent = "Téléchargé !";
+            }
         }
     });
 
-    async function saveRecordedFile(blob) {
-        // API Moderne "Save As"
-        if ('showSaveFilePicker' in window) {
-            try {
-                const handle = await window.showSaveFilePicker({
-                    suggestedName: 'mon-enregistrement.webm',
-                    types: [{
-                        description: 'Fichier Audio',
-                        accept: { 'audio/webm': ['.webm', '.mp3', '.wav', '.ogg'] },
-                    }],
-                });
-                const writable = await handle.createWritable();
-                await writable.write(blob);
-                await writable.close();
-                recorderStatus.textContent = "✅ Sauvegardé !";
-            } catch (err) {
-                recorderStatus.textContent = "Sauvegarde annulée.";
-            }
+    // --- FONCTIONS ETATS UI ---
+    
+    function setPlayState(isPlaying) {
+        if (isPlaying) {
+            btnPlay.disabled = true;
+            btnStop.disabled = false;
+            btnExport.disabled = true;
+            audioSourceSelect.disabled = true;
+            btnSelectFile.disabled = true;
         } else {
-            // Fallback
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.style.display = "none";
-            a.href = url;
-            a.download = "audio-capture.webm";
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            recorderStatus.textContent = "✅ Téléchargé (Dossier Downloads).";
+            btnPlay.disabled = false; // Sera revérifié par refreshButtonsState
+            btnStop.disabled = true;
+            btnExport.disabled = false;
+            audioSourceSelect.disabled = false;
+            refreshButtonsState(); // Rétablit la logique selon le mode
         }
-        
-        setTimeout(() => recorderStatus.style.display = "none", 4000);
     }
 
-    // ============================================================
-    // UTILITAIRES
-    // ============================================================
+    function refreshButtonsState() {
+        // Logique "Qui a le droit d'être cliqué ?"
+        if (currentMode === 'file') {
+            btnSelectFile.disabled = false;
+            // Play actif seulement si fichier chargé
+            btnPlay.disabled = !isFileLoaded;
+        } else {
+            btnSelectFile.disabled = true;
+            // Play toujours actif en mode micro/système
+            btnPlay.disabled = false;
+        }
+        
+        // Stop toujours désactivé au repos
+        btnStop.disabled = true;
+    }
 
-    function resetGeneratorState() {
+    function resetGenerator() {
         audioEngine.stop();
         isFileLoaded = false;
         fileNameDisplay.textContent = "Aucun fichier";
-        btnExport.disabled = true;
-        btnStop.disabled = true;
         progressBar.value = 0;
         currentTimeSpan.textContent = "00:00";
-        totalTimeSpan.textContent = "00:00";
     }
 
-    function formatTime(seconds) {
-        const min = Math.floor(seconds / 60);
-        const sec = Math.floor(seconds % 60);
-        return `${min < 10 ? '0' + min : min}:${sec < 10 ? '0' + sec : sec}`;
+    function formatTime(s) {
+        const m = Math.floor(s / 60);
+        const sec = Math.floor(s % 60);
+        return `${m}:${sec < 10 ? '0'+sec : sec}`;
     }
 });
