@@ -1,6 +1,6 @@
 /**
  * AUDIO ENGINE
- * Gère les sources audio (Fichier, Micro, Système) et l'analyse.
+ * Gère l'analyse (Transcription) et l'enregistrement (Recorder).
  */
 
 class AudioEngine {
@@ -13,14 +13,21 @@ class AudioEngine {
         this.buffer = null;
         this.isProcessing = false;
         
-        // Callbacks pour renvoyer les données à l'interface
+        // Variables pour l'enregistreur indépendant (Partie 2)
+        this.mediaRecorder = null;
+        this.recordedChunks = [];
+        
+        // Callbacks vers l'interface
         this.onNoteDetected = null; 
         this.onTimeUpdate = null;
         this.onEnded = null;
     }
 
+    // --- PARTIE 1 : MOTEUR DE TRANSCRIPTION ---
+
     async loadFile(file) {
         const arrayBuffer = await file.arrayBuffer();
+        // On décode
         this.buffer = await this.audioContext.decodeAudioData(arrayBuffer);
         return this.buffer.duration;
     }
@@ -32,27 +39,34 @@ class AudioEngine {
     }
 
     async setupSystemAudio() {
-        // Attention: capture tout l'audio du système (via partage d'écran)
         try {
+            // Capture audio système (via partage d'écran avec audio coché)
             this.stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+            
+            // Vérification si l'utilisateur a bien partagé l'audio
+            const audioTracks = this.stream.getAudioTracks();
+            if (audioTracks.length === 0) {
+                alert("Attention : Vous n'avez pas coché 'Partager l'audio système'. L'audio ne sera pas détecté.");
+                this.stop();
+                return false;
+            }
+
             this.source = this.audioContext.createMediaStreamSource(this.stream);
             this.source.connect(this.analyser);
-            // On connecte aussi à la sortie pour entendre ce qui se passe
-            this.source.connect(this.audioContext.destination);
+            this.source.connect(this.audioContext.destination); // Retour audio pour entendre
+            return true;
         } catch (err) {
             console.error("Erreur capture système:", err);
-            alert("L'accès à l'audio système a été refusé ou n'est pas supporté.");
+            return false;
         }
     }
 
     playFileSource(startTime = 0) {
         if (!this.buffer) return;
         
-        // Création de la source tampon
         this.source = this.audioContext.createBufferSource();
         this.source.buffer = this.buffer;
-        
-        // Connexion : Source -> Analyser -> Sortie (Haut-parleurs)
+        // Connexions
         this.source.connect(this.analyser);
         this.analyser.connect(this.audioContext.destination);
 
@@ -84,7 +98,7 @@ class AudioEngine {
         }
     }
 
-    // Boucle d'analyse (Pitch Detection simplifiée)
+    // Boucle d'analyse de fréquence (Pitch Detection)
     _startAnalysisLoop() {
         if (!this.isProcessing) return;
 
@@ -92,14 +106,12 @@ class AudioEngine {
         const dataArray = new Uint8Array(bufferLength);
         this.analyser.getByteTimeDomainData(dataArray);
 
-        // Algorithme d'auto-corrélation simple pour trouver la fréquence
         const frequency = this._autoCorrelate(dataArray, this.audioContext.sampleRate);
 
         if (frequency > -1 && this.onNoteDetected) {
             this.onNoteDetected(frequency);
         }
 
-        // Mise à jour temps (approximatif pour le flux)
         if (this.onTimeUpdate && this.audioContext.state === 'running') {
             this.onTimeUpdate(this.audioContext.currentTime);
         }
@@ -108,7 +120,7 @@ class AudioEngine {
     }
 
     _autoCorrelate(buf, sampleRate) {
-        // Implémentation basique de détection de pitch
+        // Algorithme simple d'autocorrélation pour trouver la fréquence fondamentale
         let size = buf.length;
         let rms = 0;
         for (let i = 0; i < size; i++) {
@@ -116,7 +128,7 @@ class AudioEngine {
             rms += val * val;
         }
         rms = Math.sqrt(rms / size);
-        if (rms < 0.01) return -1; // Trop silencieux
+        if (rms < 0.01) return -1; // Silence
 
         let r1 = 0, r2 = size - 1, thres = 0.2;
         for (let i = 0; i < size / 2; i++) {
@@ -141,5 +153,56 @@ class AudioEngine {
         }
         let T0 = maxpos;
         return sampleRate / T0;
+    }
+
+    // --- PARTIE 2 : ENREGISTREUR INDÉPENDANT ---
+
+    async startRecordingSystem() {
+        try {
+            // Demande de partage d'écran avec audio
+            const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+            
+            // On ne garde que la piste audio
+            const audioTracks = stream.getAudioTracks();
+            if (audioTracks.length === 0) throw new Error("Pas d'audio partagé");
+
+            const audioStream = new MediaStream(audioTracks);
+            
+            // Codecs préférés
+            const options = { mimeType: 'audio/webm;codecs=opus' };
+            
+            this.mediaRecorder = new MediaRecorder(audioStream, options);
+            this.recordedChunks = [];
+
+            this.mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    this.recordedChunks.push(event.data);
+                }
+            };
+
+            this.mediaRecorder.start();
+            return true;
+        } catch (err) {
+            console.error("Erreur démarrage enregistrement:", err);
+            return false;
+        }
+    }
+
+    async stopRecordingAndGetBlob() {
+        return new Promise((resolve) => {
+            if (!this.mediaRecorder) return resolve(null);
+
+            this.mediaRecorder.onstop = () => {
+                const blob = new Blob(this.recordedChunks, { type: 'audio/webm' });
+                // Tout arrêter proprement
+                if(this.mediaRecorder.stream) {
+                    this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                }
+                this.mediaRecorder = null;
+                resolve(blob);
+            };
+
+            this.mediaRecorder.stop();
+        });
     }
 }

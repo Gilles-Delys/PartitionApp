@@ -1,8 +1,9 @@
 :root {
-    --primary: #4A90E2;
-    --secondary: #50E3C2;
-    --danger: #E25E5E;
-    --success: #27AE60;
+    --primary: #4A90E2;      /* Bleu */
+    --secondary: #34495E;    /* Gris foncé */
+    --danger: #E74C3C;       /* Rouge */
+    --record: #C0392B;       /* Rouge foncé pour Rec */
+    --success: #27AE60;      /* Vert */
     --dark: #2C3E50;
     --light: #ECF0F1;
     --white: #FFFFFF;
@@ -10,7 +11,7 @@
 
 body {
     font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    background-color: #f4f7f6;
+    background-color: #f4f6f8;
     margin: 0;
     padding: 20px;
     color: var(--dark);
@@ -22,21 +23,27 @@ body {
     background-color: var(--white);
     width: 100%;
     max-width: 1000px;
-    padding: 30px;
+    padding: 40px;
     border-radius: 12px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
 }
 
 header {
     text-align: center;
     margin-bottom: 30px;
-    border-bottom: 2px solid var(--light);
-    padding-bottom: 20px;
 }
 
 header h1 {
     margin: 0;
     color: var(--primary);
+    font-size: 2.2rem;
+}
+
+h2 {
+    color: var(--dark);
+    border-left: 5px solid var(--primary);
+    padding-left: 15px;
+    margin-top: 0;
 }
 
 .controls-panel {
@@ -44,10 +51,10 @@ header h1 {
     flex-wrap: wrap;
     gap: 15px;
     align-items: center;
-    justify-content: center;
     padding: 20px;
     background-color: #fafafa;
     border-radius: 8px;
+    border: 1px solid #eee;
     margin-bottom: 20px;
 }
 
@@ -61,6 +68,7 @@ select {
     border-radius: 6px;
     border: 1px solid #ccc;
     font-size: 16px;
+    background: white;
 }
 
 .btn {
@@ -68,30 +76,35 @@ select {
     border: none;
     border-radius: 6px;
     cursor: pointer;
-    font-weight: bold;
+    font-weight: 600;
     font-size: 14px;
-    transition: transform 0.1s, opacity 0.2s;
     color: white;
+    transition: transform 0.1s, opacity 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.btn:active { transform: scale(0.98); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; background-color: #ccc !important; }
+.btn:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; background-color: #bdc3c7 !important; }
 
 .btn-primary { background-color: var(--primary); }
-.btn-secondary { background-color: var(--dark); }
+.btn-secondary { background-color: var(--secondary); }
 .btn-danger { background-color: var(--danger); }
 .btn-success { background-color: var(--success); }
+.btn-record { background-color: var(--record); }
 
 .divider {
     width: 1px;
-    height: 40px;
-    background-color: #ccc;
+    height: 35px;
+    background-color: #ddd;
     margin: 0 10px;
 }
 
 #fileNameDisplay {
     font-size: 0.9em;
-    color: #666;
+    color: #7f8c8d;
     max-width: 150px;
     white-space: nowrap;
     overflow: hidden;
@@ -105,7 +118,10 @@ select {
 .progress-container {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 15px;
+    background: #f8f9fa;
+    padding: 8px 15px;
+    border-radius: 20px;
 }
 
 input[type=range] {
@@ -114,8 +130,8 @@ input[type=range] {
 }
 
 .sheet-music-container {
-    border: 1px solid #e0e0e0;
-    min-height: 300px;
+    border: 2px dashed #e0e0e0;
+    min-height: 250px;
     border-radius: 8px;
     padding: 20px;
     background: white;
@@ -123,10 +139,20 @@ input[type=range] {
     justify-content: center;
     align-items: flex-start;
     overflow-x: auto;
-    box-shadow: inset 0 0 10px rgba(0,0,0,0.02);
 }
 
-#canvasContainer {
-    width: 100%;
-    text-align: center;
+.section-separator {
+    border: 0;
+    height: 1px;
+    background: #e0e0e0;
+    margin: 40px 0;
 }
+
+.recorder-status {
+    font-weight: bold;
+    color: var(--record);
+    margin-right: auto;
+    display: none; 
+}
+
+#canvasContainer { width: 100%; text-align: center; }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Générer ma Partition - Clarinette Sib</title>
+    <title>Générateur de Partition & Enregistreur</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/vexflow/releases/vexflow-debug.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -14,44 +14,61 @@
     <div class="container">
         <header>
             <h1>🎼 Générateur de Partition</h1>
-            <p>Transcription Audio vers Clarinette Si♭</p>
+            <p>Transcription Clarinette Si♭ & Enregistrement Audio</p>
         </header>
 
-        <section class="controls-panel">
-            <div class="input-group">
-                <label for="audioSource">Source Audio :</label>
-                <select id="audioSource">
-                    <option value="file">Fichier Audio (MP3, WAV...)</option>
-                    <option value="mic">Microphone</option>
-                    <option value="system">Haut-parleurs (Capture Système)</option>
-                </select>
-            </div>
+        <section class="main-panel">
+            <h2>1. Générer la partition</h2>
+            
+            <div class="controls-panel">
+                <div class="input-group">
+                    <label for="audioSource">Source Audio :</label>
+                    <select id="audioSource">
+                        <option value="file">Fichier Audio (MP3, WAV...)</option>
+                        <option value="mic">Microphone</option>
+                        <option value="system">Haut-parleurs (Capture Système)</option>
+                    </select>
+                </div>
 
-            <input type="file" id="fileInput" accept=".mp3,.wav,.ogg,.aac,.mp4" style="display: none;">
-            <button id="btnSelectFile" class="btn btn-secondary">📂 Sélectionner Fichier</button>
-            <span id="fileNameDisplay">Aucun fichier sélectionné</span>
+                <input type="file" id="fileInput" accept="audio/*,video/*" style="display: none;">
+                
+                <button id="btnSelectFile" class="btn btn-secondary">📂 Sélectionner Fichier</button>
+                <span id="fileNameDisplay">Aucun fichier</span>
 
-            <div class="divider"></div>
+                <div class="divider"></div>
 
-            <div class="playback-controls">
-                <button id="btnPlay" class="btn btn-primary" disabled>▶ Play / Capturer</button>
+                <button id="btnPlay" class="btn btn-primary" disabled>▶ Play</button>
                 <button id="btnStop" class="btn btn-danger" disabled>⏹ Stop</button>
-                <button id="btnExport" class="btn btn-success" disabled>📄 Exporter PDF</button>
+                <button id="btnExport" class="btn btn-success" disabled>📄 Exporter Partition PDF</button>
+            </div>
+
+            <div class="progress-section">
+                <div class="progress-container">
+                    <span id="currentTime">00:00</span>
+                    <input type="range" id="progressBar" value="0" min="0" step="0.1" disabled>
+                    <span id="totalTime">00:00</span>
+                </div>
+            </div>
+
+            <div class="sheet-music-container" id="sheetMusicWrapper">
+                <div id="canvasContainer"></div>
             </div>
         </section>
 
-        <section class="progress-section">
-            <div class="progress-container">
-                <span id="currentTime">00:00</span>
-                <input type="range" id="progressBar" value="0" min="0" step="0.1" disabled>
-                <span id="totalTime">00:00</span>
+        <hr class="section-separator">
+
+        <section class="recorder-panel">
+            <h2>2. Enregistrer de l'audio (Système)</h2>
+            <p>Capturez le son de vos haut-parleurs pour le sauvegarder en fichier audio.</p>
+            
+            <div class="controls-panel">
+                <div class="recorder-status" id="recorderStatus">Prêt à enregistrer</div>
+                <button id="btnRecStart" class="btn btn-record">🔴 Commencer l'enregistrement</button>
+                <button id="btnRecStop" class="btn btn-danger" disabled>⏹ Arrêter & Sauvegarder</button>
             </div>
-            <audio id="audioPreview" hidden></audio>
         </section>
 
-        <section class="sheet-music-container" id="sheetMusicWrapper">
-            <div id="canvasContainer"></div>
-        </section>
+        <audio id="audioPreview" hidden></audio>
     </div>
 
     <script src="audio-engine.js"></script>
