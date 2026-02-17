@@ -1,9 +1,9 @@
 :root {
-    --primary: #4A90E2;      /* Bleu */
-    --secondary: #34495E;    /* Gris foncé */
-    --danger: #E74C3C;       /* Rouge */
-    --record: #C0392B;       /* Rouge foncé pour Rec */
-    --success: #27AE60;      /* Vert */
+    --primary: #4A90E2;      
+    --secondary: #34495E;    
+    --danger: #E74C3C;       
+    --record: #C0392B;       
+    --success: #27AE60;      
     --dark: #2C3E50;
     --light: #ECF0F1;
     --white: #FFFFFF;
@@ -87,7 +87,15 @@ select {
 
 .btn:hover { opacity: 0.9; transform: translateY(-1px); }
 .btn:active { transform: translateY(1px); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; background-color: #bdc3c7 !important; }
+
+/* Gestion de l'état désactivé (Grisé) */
+.btn:disabled { 
+    opacity: 0.5; 
+    cursor: not-allowed; 
+    transform: none; 
+    background-color: #95a5a6 !important; 
+    pointer-events: none; /* Empêche tout clic */
+}
 
 .btn-primary { background-color: var(--primary); }
 .btn-secondary { background-color: var(--secondary); }

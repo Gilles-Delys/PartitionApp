@@ -40,7 +40,7 @@ class NotationManager {
         return { note: noteStrings[noteIndex], octave: octave };
     }
 
-    // Transposition Clarinette Sib : Son réel + 1 ton (2 demi-tons)
+    // Transposition Clarinette Sib (+2 demi-tons)
     transposeToClarinetBb(noteObj) {
         const noteStrings = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
         let idx = noteStrings.indexOf(noteObj.note);

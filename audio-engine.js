@@ -27,7 +27,6 @@ class AudioEngine {
 
     async loadFile(file) {
         const arrayBuffer = await file.arrayBuffer();
-        // On décode
         this.buffer = await this.audioContext.decodeAudioData(arrayBuffer);
         return this.buffer.duration;
     }
@@ -43,17 +42,16 @@ class AudioEngine {
             // Capture audio système (via partage d'écran avec audio coché)
             this.stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
             
-            // Vérification si l'utilisateur a bien partagé l'audio
             const audioTracks = this.stream.getAudioTracks();
             if (audioTracks.length === 0) {
-                alert("Attention : Vous n'avez pas coché 'Partager l'audio système'. L'audio ne sera pas détecté.");
+                alert("Erreur : Audio non partagé. Veuillez cocher 'Partager l'audio système'.");
                 this.stop();
                 return false;
             }
 
             this.source = this.audioContext.createMediaStreamSource(this.stream);
             this.source.connect(this.analyser);
-            this.source.connect(this.audioContext.destination); // Retour audio pour entendre
+            this.source.connect(this.audioContext.destination); // Retour audio
             return true;
         } catch (err) {
             console.error("Erreur capture système:", err);
@@ -66,7 +64,6 @@ class AudioEngine {
         
         this.source = this.audioContext.createBufferSource();
         this.source.buffer = this.buffer;
-        // Connexions
         this.source.connect(this.analyser);
         this.analyser.connect(this.audioContext.destination);
 
@@ -98,7 +95,6 @@ class AudioEngine {
         }
     }
 
-    // Boucle d'analyse de fréquence (Pitch Detection)
     _startAnalysisLoop() {
         if (!this.isProcessing) return;
 
@@ -120,7 +116,6 @@ class AudioEngine {
     }
 
     _autoCorrelate(buf, sampleRate) {
-        // Algorithme simple d'autocorrélation pour trouver la fréquence fondamentale
         let size = buf.length;
         let rms = 0;
         for (let i = 0; i < size; i++) {
@@ -128,7 +123,7 @@ class AudioEngine {
             rms += val * val;
         }
         rms = Math.sqrt(rms / size);
-        if (rms < 0.01) return -1; // Silence
+        if (rms < 0.01) return -1; 
 
         let r1 = 0, r2 = size - 1, thres = 0.2;
         for (let i = 0; i < size / 2; i++) {
@@ -159,16 +154,12 @@ class AudioEngine {
 
     async startRecordingSystem() {
         try {
-            // Demande de partage d'écran avec audio
             const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
             
-            // On ne garde que la piste audio
             const audioTracks = stream.getAudioTracks();
             if (audioTracks.length === 0) throw new Error("Pas d'audio partagé");
 
             const audioStream = new MediaStream(audioTracks);
-            
-            // Codecs préférés
             const options = { mimeType: 'audio/webm;codecs=opus' };
             
             this.mediaRecorder = new MediaRecorder(audioStream, options);
@@ -183,7 +174,7 @@ class AudioEngine {
             this.mediaRecorder.start();
             return true;
         } catch (err) {
-            console.error("Erreur démarrage enregistrement:", err);
+            console.error("Erreur enregistrement:", err);
             return false;
         }
     }
@@ -194,7 +185,6 @@ class AudioEngine {
 
             this.mediaRecorder.onstop = () => {
                 const blob = new Blob(this.recordedChunks, { type: 'audio/webm' });
-                // Tout arrêter proprement
                 if(this.mediaRecorder.stream) {
                     this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
                 }
